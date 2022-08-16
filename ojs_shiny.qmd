@@ -1,0 +1,77 @@
+---
+title: "Observable Shiny Example"
+format: html
+server:
+  type: shiny
+---
+
+[K-Means Clustering](https://shiny.rstudio.com/gallery/kmeans-example.html) example 
+from the Shiny Gallery implemented with an OJS client and Shiny Server. Updated with
+`palmerpenguins` data. 
+
+
+```{ojs}
+//| panel: sidebar
+
+//vars = ["bill_length_mm", "bill_depth_mm", "flipper_length_mm"]
+vars = cols
+viewof xcol = Inputs.select(vars, {label: "X Variable", value: vars[0]})
+viewof ycol = Inputs.select(vars, {label: "Y Variable", value: vars[1]})
+viewof count = Inputs.range([1, 9], {label: "Cluster Count", step: 1, value: 2})
+```
+
+```{ojs}
+//| panel: fill
+Plot.plot({
+  color: {
+    type: "ordinal",
+    scheme: "category10"
+  },
+  marks: [
+    Plot.dot(transpose(selectedData), {
+      x: xcol,
+      y: ycol,
+      fill: (d, i) => clusters.cluster[i],
+    }),
+    Plot.dot(clusters.centers, { 
+      x: d => d[0],
+      y: d => d[1],
+      r: 10,
+      stroke: "black",
+      fill: (d, i) => i + 1
+    }),
+  ]
+})
+```
+
+```{r}
+#| context: server-start
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(palmerpenguins)
+library(tidyr)
+data(penguins)
+
+penguins <- penguins |>
+  tidyr::drop_na(bill_depth_mm)
+
+
+```
+
+```{r}
+#| context: server
+cols <- reactive({penguins |> select(where(is.numeric)) |> colnames()})
+
+selectedData <- reactive({
+  req(input$xcol)
+  req(input$ycol)
+  penguins[, c(input$xcol, input$ycol)]
+})
+clusters <- reactive({
+  req(input$count)
+  kmeans(selectedData(), input$count)
+})
+
+ojs_define(selectedData, clusters, cols)
+```
